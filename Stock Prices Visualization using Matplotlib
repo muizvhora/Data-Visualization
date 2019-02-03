@@ -1,0 +1,90 @@
+##### Based on Data Visualization Tutorials by Sentdex #####
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import style
+from pandas_datareader import data, wb
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
+import datetime
+from datetime import datetime, time
+
+%matplotlib auto
+
+import pandas as pd
+import matplotlib.ticker as mticker
+import time
+from datetime import date
+from matplotlib.finance import candlestick2_ochl
+import matplotlib.finance as fin
+# import matplotlib.dates as mdates
+style.use('fivethirtyeight')
+
+MA1 = 15
+MA2 = 30
+
+def moving_avg(values, ma):
+    
+    fraction = np.repeat(1.0, ma)/ma
+    return np.convolve(values, fraction, 'valid')
+
+def read_stock_data(stock):
+    
+    fig = plt.figure(figsize=(10,10), dpi = 60)
+    ax1 = plt.subplot2grid((10,1), (0,0), rowspan= 3, colspan= 1)
+    plt.title('Stock Prices')
+    ax2 = plt.subplot2grid((10,1), (3,0), rowspan= 4, colspan= 1, sharex = ax1)
+    ax3 = plt.subplot2grid((10,1), (7,0), rowspan= 3, colspan= 1, sharex = ax1)
+    
+    start = datetime(2015,1,1)
+    end   = datetime.fromtimestamp(time.time())
+    df = data.DataReader(stock, 'yahoo', start, end)
+    df.reset_index(inplace = True)
+
+    #Subplot - 1 #### HIGH - lOW
+    df['High_Low'] = df.High - df.Low
+    ax1.plot(df.Date.iloc[max(MA1, MA2)-1:], df['High_Low'].iloc[max(MA1, MA2)-1:], color = 'c', linewidth=1, label = 'High - Low')
+    plt.setp(ax1.get_xticklabels(), visible = False)
+    ax1.yaxis.set_ticks([0,5,10,15])
+    ax1.xaxis.set_major_locator(mticker.MaxNLocator(nbins = 'auto', prune = 'lower'))
+    ax1.legend()
+
+    # ADD annotations to subplot-1 for max value:
+    max_pt = df.High_Low.idxmax()
+    min_pt = df.High_Low.idxmin()
+    
+    ax1.annotate('Max rise', 
+                 (df.Date[max_pt], 
+                 df.High_Low[max_pt]),
+                 xytext = (0.7, 0.7),
+                textcoords = 'axes fraction',
+               arrowprops=dict(facecolor = '#bd1067', color = '#bd1067'))
+    
+    #Subplot - 2 ##### Candlestick - OHLC
+    ohlc = []
+    data_copy = df.copy()
+    data_copy['Date_Ordinal'] = data_copy.Date.apply(lambda x: datetime.toordinal(x))
+    labels_required = ['Date_Ordinal', 'Open', 'High', 'Low', 'Close', 'Volume']
+    data_copy = data_copy[labels_required]
+    ax2.plot([],[],label = 'OHLC Graph', linewidth = 1)
+    
+    for i in range(len(data_copy)):
+        ohlc.append(data_copy.iloc[i])
+    fin.candlestick_ohlc(ax2, ohlc[max(MA1, MA2)-1:], colorup= 'g', colordown= 'r', width= 0.6, alpha= 0.6)
+    plt.setp(ax2.get_xticklabels(), visible = False)
+    ax2.yaxis.set_major_locator(mticker.MaxNLocator(nbins = 5, prune = 'upper'))
+    ax2.legend()
+    
+    #Subplot - 3 ##### Moving Averages
+    
+    sma_vol_1 = moving_avg(data_copy.Volume, MA1)
+    sma_vol_2 = moving_avg(data_copy.Volume, MA2)
+    
+    ax3.plot( data_copy.Date_Ordinal.iloc[max(MA1, MA2)-1:],sma_vol_1[MA2-MA1:], linewidth=1, label = 'Fast Moving Avg')
+    ax3.plot(data_copy.Date_Ordinal.iloc[max(MA1, MA2)-1:], sma_vol_2, linewidth= 1, label = 'Slow Moving Avg')
+    plt.setp(ax3.get_xticklabels(), rotation = 45)
+    
+    plt.legend()
+    plt.show()
+    
+df = read_stock_data('GOOG')       
